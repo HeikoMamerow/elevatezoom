@@ -141,6 +141,8 @@ function ez_class_render(  ) {
 
 	$options = get_option( 'ez_settings' );
 	
+	if ( !is_array( $options ) ) $options = array();
+	
 	if ( !array_key_exists('ez_class', $options) ) $options['ez_class'] = 'elevateZoom';
 	
 	?>
@@ -152,6 +154,8 @@ function ez_class_render(  ) {
 function ez_zoomType_render( ) {
 
 	$options = get_option( 'ez_settings' );
+
+	if ( !is_array( $options ) ) $options = array();
 	
 	if ( !array_key_exists('zoomType', $options) ) $options['zoomType'] = 'window';	
 	
@@ -169,6 +173,8 @@ function ez_zoomType_render( ) {
 function ez_zoomWindowPosition_render( ) {
 
 	$options = get_option( 'ez_settings' );
+
+	if ( !is_array( $options ) ) $options = array();
 	
 	if ( !array_key_exists('zoomWindowPosition', $options) ) $options['zoomWindowPosition'] = 1;	
 	
@@ -181,6 +187,8 @@ function ez_zoomWindowPosition_render( ) {
 function ez_zoomWindowHeight_render( ) {
 
 	$options = get_option( 'ez_settings' );
+
+	if ( !is_array( $options ) ) $options = array();
 	
 	if ( !array_key_exists('zoomWindowHeight', $options) ) $options['zoomWindowHeight'] = 400;	
 	
@@ -193,6 +201,8 @@ function ez_zoomWindowHeight_render( ) {
 function ez_zoomWindowWidth_render( ) {
 
 	$options = get_option( 'ez_settings' );
+
+	if ( !is_array( $options ) ) $options = array();
 	
 	if ( !array_key_exists('zoomWindowWidth', $options) ) $options['zoomWindowWidth'] = 400;	
 	
@@ -206,6 +216,8 @@ function ez_scrollZoom_render(  ) {
 
 	$options = get_option( 'ez_settings' );
 
+	if ( !is_array( $options ) ) $options = array();
+
 	if ( !array_key_exists('scrollZoom', $options) ) $options['scrollZoom'] = 0;	150
 
 	?>
@@ -217,6 +229,8 @@ function ez_scrollZoom_render(  ) {
 function ez_lensShape_render( ) {
 
 	$options = get_option( 'ez_settings' );
+
+	if ( !is_array( $options ) ) $options = array();
 	
 	if ( !array_key_exists('lensShape', $options) ) $options['lensShape'] = 'square';	
 	
@@ -233,6 +247,8 @@ function ez_lensShape_render( ) {
 function ez_lensSize_render(  ) { 
 
 	$options = get_option( 'ez_settings' );
+
+	if ( !is_array( $options ) ) $options = array();
 	
 	if ( !array_key_exists('lensSize', $options) ) $options['lensSize'] = 200;
 	
