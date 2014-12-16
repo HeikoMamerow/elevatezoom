@@ -7,7 +7,7 @@ For more about elevateZoom see http://www.elevateweb.co.uk/image-zoom.
 
 ##Installing the plugin 
 
-1. Download the master file and upload via the new plugin screen in your WordPress admin interface. 
+1. Download the zip file (see button in right-hand margin >) and upload via the new plugin screen in your WordPress admin interface. 
 2. Review the settings at Settings > elevateZoom and change as necessary
 
 ##Adding elevateZoom to single images
