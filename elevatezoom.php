@@ -7,9 +7,57 @@ Version: 1.0
 Author URI: http://twitter.com/ChrisKnowles
 */
 
-// enqueue elevateZoom jQuery plugin
+function initialize_elevatezoom() {
 
-function ez_enqueue_script() {
+	$options = get_option( 'elevatezoom_settings' );
+
+	if( false == $options ) { 
+
+		$options = array(
+			'ezClass' => 'elevateZoom',
+			'zoomType' => 'window',
+			'lensShape' => 'square',
+			'lensSize' => 100,
+			'scrollZoom' => false,
+			'zoomWindowPosition' => 1,
+			'zoomWindowWidth' => 400,
+			'zoomWindowHeight' => 400,
+			'galleryThumbWidth' => 100,
+			'galleryThumbHeight' => 100,
+			'galleryThumbCrop' => 1,
+			'galleryDisplayWidth' => 300,
+			'galleryDisplayHeight' => 300,
+			'galleryDisplayCrop' => 1,
+			'galleryZoomWidth' => 600,
+			'galleryZoomHeight' => 600,
+			'galleryZoomCrop' => 1,
+			'imageCrossfade' => true,
+			'loadingIcon' => 'http://traindaze.com/assets/images/loader.gif'
+		);
+
+		add_option( 'elevatezoom_settings' , $options);
+
+	}
+
+	add_image_size( 'zoom-thumb', $options['galleryThumbWidth'], $options['galleryThumbHeight'], $options['galleryThumbCrop'] );
+	add_image_size( 'zoom-display', $options['galleryDisplayWidth'], $options['galleryDisplayHeight'], $options['galleryDisplayCrop'] );
+	add_image_size( 'zoom-zoom', $options['galleryZoomWidth'], $options['galleryZoomHeight'], $options['galleryZoomCrop'] );
+
+	if ( is_admin() ) {
+		add_action( 'admin_menu', 'elevatezoom_add_admin_menu' );
+		add_action( 'admin_init', 'elevatezoom_settings_init' );
+
+	} else {
+		add_action( 'wp_enqueue_scripts', 'elevatezoom_enqueue_script' );
+		add_shortcode('zoomgallery', 'zoomgallery_shortcode');
+	}
+
+}
+
+initialize_elevateZoom();
+
+// enqueue elevateZoom jQuery plugin
+function elevatezoom_enqueue_script() {
 	
 	wp_enqueue_script(
 		'elevateZoom',
@@ -26,141 +74,232 @@ function ez_enqueue_script() {
 		null,
 		true
 	);
-	
-	$options = get_option('ez_settings');
+
+	$options = get_option('elevatezoom_settings');
 	
 	$elevateZoomSettings = $options;
 	
 	wp_localize_script( 'elevateZoom', 'ezSettings' , $elevateZoomSettings );
 }
 
-add_action( 'wp_enqueue_scripts', 'ez_enqueue_script' );
 
-// add default settings page
+/**
+ * The Zoom Gallery shortcode.
+ *
+ **/
+function zoomgallery_shortcode( $attr ) {
 
-add_action( 'admin_menu', 'ez_add_admin_menu' );
-add_action( 'admin_init', 'ez_settings_init' );
+	$post = get_post();
 
+	static $instance = 0;
+	$instance++;
 
-function ez_add_admin_menu(  ) { 
+	if ( ! empty( $attr['ids'] ) ) {
+
+		$data_atts = '';
+
+		// pass through elevateZoom attributes
+		foreach ($attr as $key => $value) {
+    			if ( substr( $value, 0, 5 ) == 'data-' ) $data_atts = $data_atts . ' ' . $value;
+		}
+
+		$_attachments = get_posts( 
+			array
+			( 	'include' => $attr['ids'], 
+				'post_status' => 'inherit', 
+				'post_type' => 'attachment', 
+				'post_mime_type' => 'image', 
+				'order' => 'ASC', 
+				'orderby' => 'post__in' 
+			) 
+		);
+
+		$attachments = array();
+		
+		foreach ( $_attachments as $key => $val ) {
+			$attachments[$val->ID] = $_attachments[$key];
+		}
+		
+	}
+		
+	if ( empty( $attachments ) ) {
+		return '';
+	}
+
+	if ( is_feed() ) {
+		$output = '\n';
+		foreach ( $attachments as $att_id => $attachment ) {
+			$output .= wp_get_attachment_link( $att_id, 'thumbnail', true ) . '\n';
+		}
+		return $output;
+	}
+
+	$selector = 'zoomgallery-{$instance}';
+
+	$output = '<div id="'. $selector . '" class="zoomgallery" style="margin-top: 5px">';
+
+	$i = 0;
+
+	foreach ( $attachments as $id => $attachment ) {
+
+		$thumb	= wp_get_attachment_image_src( $id, 'zoom-thumb' );
+		$display = wp_get_attachment_image_src( $id, 'zoom-display' );
+		$zoom	= wp_get_attachment_image_src( $id, 'zoom-zoom' );
+
+		if ($i==0) $output = '<img class="zoomDisplay" data-gallery="' . $selector . '" src="' . $display[0] . '" id="zoom-' . $instance . '" data-zoom-image="' . $zoom[0] . '"' . $data_atts . '>' . $output;
+
+		$output .= '
+		<a href="#" data-image="' . $display[0] . '" data-zoom-image="' . $zoom[0] . '" title="Click to view zoomable picture" class="' . ($i==0 ? 'active' : '') . '">
+			<img src="' . $thumb[0] . '" alt="gallery image">
+		</a>';
+
+		$i++;			
+	}
+
+	$output .= '</div>\n';
+
+	return $output;
+}
+
+function elevatezoom_add_admin_menu(  ) { 
 
 	add_options_page( 'elevateZoom', 'elevateZoom', 'manage_options', 'elevatezoom', 'elevatezoom_options_page' );
 
 }
 
 
-function ez_settings_exist(  ) { 
+function elevatezoom_settings_init(  ) { 
 
-	if( false == get_option( 'elevatezoom_settings' ) ) { 
-
-		add_option( 'elevatezoom_settings' );
-
-	}
-
-}
-
-
-function ez_settings_init(  ) { 
-
-	register_setting( 'pluginPage', 'ez_settings' );
+	register_setting( 'general', 'elevatezoom_settings' );
+	register_setting( 'gallery', 'elevatezoom_settings' );
 
 	add_settings_section(
-		'ez_pluginPage_section', 
-		__( 'Set the defaults for elevateZoom', 'ez' ), 
-		'ez_settings_section_callback', 
-		'pluginPage'
+		'ez_general_section', 
+		__( 'General settings', 'elevatezoom' ), 
+		'ez_general_settings_section_callback', 
+		'general'
+	);
+
+	add_settings_section(
+		'ez_gallery_section', 
+		__( 'Gallery image settings', 'elevatezoom' ), 
+		'ez_gallery_settings_section_callback', 
+		'gallery'
 	);
 
 	add_settings_field( 
 		'ez_class', 
-		__( 'Activate elevateZoom for images with this class: ', 'ez' ), 
+		__( 'Activate elevateZoom for images with this class: ', 'elevatezoom' ), 
 		'ez_class_render', 
-		'pluginPage', 
-		'ez_pluginPage_section' 
+		'general', 
+		'ez_general_section' 
 	);
 
 	add_settings_field( 
 		'ez_zoomType', 
-		__( 'zoomType : ', 'ez' ), 
+		__( 'zoomType : ', 'elevatezoom' ), 
 		'ez_zoomType_render', 
-		'pluginPage', 
-		'ez_pluginPage_section' 
+		'general', 
+		'ez_general_section'
 	);
 
 	add_settings_field( 
 		'ez_scrollZoom', 
-		__( 'scrollZoom : ', 'ez' ), 
+		__( 'scrollZoom : ', 'elevatezoom' ), 
 		'ez_scrollZoom_render', 
-		'pluginPage', 
-		'ez_pluginPage_section' 
+		'general', 
+		'ez_general_section'
 	);
 
 	add_settings_field( 
 		'ez_lensShape', 
-		__( 'lensShape : ', 'ez' ), 
+		__( 'lensShape : ', 'elevatezoom' ), 
 		'ez_lensShape_render', 
-		'pluginPage', 
-		'ez_pluginPage_section' 
+		'general', 
+		'ez_general_section'
 	);
 
 	add_settings_field( 
 		'ez_lensSize', 
-		__( 'lensSize : ', 'ez' ), 
+		__( 'lensSize : ', 'elevatezoom' ), 
 		'ez_lensSize_render', 
-		'pluginPage', 
-		'ez_pluginPage_section' 
+		'general', 
+		'ez_general_section' 
 	);
 
 	add_settings_field( 
 		'ez_zoomWindowPosition', 
-		__( 'zoomWindowPosition (1 to 16): ', 'ez' ), 
+		__( 'zoomWindowPosition (1 to 16): ', 'elevatezoom' ), 
 		'ez_zoomWindowPosition_render', 
-		'pluginPage', 
-		'ez_pluginPage_section' 
+		'general', 
+		'ez_general_section' 
 	);
 
 	add_settings_field( 
-		'ez_zoomWindowHeight', 
-		__( 'zoomWindowHeight : ', 'ez' ), 
-		'ez_zoomWindowHeight_render', 
-		'pluginPage', 
-		'ez_pluginPage_section' 
+		'ez_zoomWindowSize', 
+		__( 'zoomWindowSize : ', 'elevatezoom' ), 
+		'ez_zoomWindowSize_render', 
+		'general', 
+		'ez_general_section' 
 	);
 
 	add_settings_field( 
-		'ez_zoomWindowWidth', 
-		__( 'zoomWindowWidth : ', 'ez' ), 
-		'ez_zoomWindowWidth_render', 
-		'pluginPage', 
-		'ez_pluginPage_section' 
+		'ez_galleryThumb', 
+		__( 'Thumbnail : ', 'elevatezoom' ), 
+		'ez_galleryThumb_render', 
+		'gallery', 
+		'ez_gallery_section' 
 	);
 
+	add_settings_field( 
+		'ez_galleryDisplay', 
+		__( 'Display : ', 'elevatezoom' ), 
+		'ez_galleryDisplay_render', 
+		'gallery', 
+		'ez_gallery_section' 
+	);
+
+	add_settings_field( 
+		'ez_galleryZoom', 
+		__( 'Zoom : ', 'elevatezoom' ), 
+		'ez_galleryZoom_render', 
+		'gallery', 
+		'ez_gallery_section'  
+	);
+
+	add_settings_field( 
+		'ez_imageCrossfade', 
+		__( 'imageCrossfade : ', 'elevatezoom' ), 
+		'ez_imageCrossfade_render', 
+		'gallery', 
+		'ez_gallery_section'  
+	);
+
+	add_settings_field( 
+		'ez_loadingIcon', 
+		__( 'loadingIcon : ', 'elevatezoom' ), 
+		'ez_loadingIcon_render', 
+		'gallery', 
+		'ez_gallery_section'  
+	);
 }
 
 function ez_class_render(  ) { 
 
-	$options = get_option( 'ez_settings' );
-	
-	if ( !is_array( $options ) ) $options = array();
-	
-	if ( !array_key_exists('ez_class', $options) ) $options['ez_class'] = 'elevateZoom';
-	
+	$options = get_option( 'elevatezoom_settings' );
+
 	?>
-	<input type='text' name='ez_settings[ez_class]' value='<?php echo $options['ez_class']; ?>'>
+	<input type='text' name='elevatezoom_settings[ezClass]' value='<?php echo $options['ezClass']; ?>'>
 	<?php
 
 }
 
 function ez_zoomType_render( ) {
 
-	$options = get_option( 'ez_settings' );
+	$options = get_option( 'elevatezoom_settings' );
 
-	if ( !is_array( $options ) ) $options = array();
-	
-	if ( !array_key_exists('zoomType', $options) ) $options['zoomType'] = 'window';	
-	
 	?>
-	<select name='ez_settings[zoomType]'>
+	<select name='elevatezoom_settings[zoomType]'>
 		<option value='window' <?php selected( $options['zoomType'], 'window' ); ?>>Window</option>
 		<option value='lens' <?php selected( $options['zoomType'], 'lens' ); ?>>Lens</option>
 		<option value='inner' <?php selected( $options['zoomType'], 'inner' ); ?>>Inner</option>
@@ -172,70 +311,104 @@ function ez_zoomType_render( ) {
 
 function ez_zoomWindowPosition_render( ) {
 
-	$options = get_option( 'ez_settings' );
+	$options = get_option( 'elevatezoom_settings' );
 
-	if ( !is_array( $options ) ) $options = array();
-	
-	if ( !array_key_exists('zoomWindowPosition', $options) ) $options['zoomWindowPosition'] = 1;	
-	
 	?>
-	<input type='text' name='ez_settings[zoomWindowPosition]' value='<?php echo $options['zoomWindowPosition']; ?>'>
+	<input size="4" type='text' name='elevatezoom_settings[zoomWindowPosition]' value='<?php echo $options['zoomWindowPosition']; ?>'>
 	<?php
 
 }
 
-function ez_zoomWindowHeight_render( ) {
+function ez_zoomWindowSize_render( ) {
 
-	$options = get_option( 'ez_settings' );
+	$options = get_option( 'elevatezoom_settings' );
 
-	if ( !is_array( $options ) ) $options = array();
-	
-	if ( !array_key_exists('zoomWindowHeight', $options) ) $options['zoomWindowHeight'] = 400;	
-	
 	?>
-	<input type='text' name='ez_settings[zoomWindowHeight]' value='<?php echo $options['zoomWindowHeight']; ?>'>
+ 	<label for="elevatezoom_settings[zoomWindowWidth]">Width:</label>
+	<input size="4" type='text' name='elevatezoom_settings[zoomWindowWidth]' value='<?php echo $options['zoomWindowWidth']; ?>'>
+ 	<label for="elevatezoom_settings[zoomWindowHeight]">Height:</label>
+	<input size="4" type='text' name='elevatezoom_settings[zoomWindowHeight]' value='<?php echo $options['zoomWindowHeight']; ?>'>
 	<?php
 
 }
 
-function ez_zoomWindowWidth_render( ) {
+function ez_galleryThumb_render( ) {
 
-	$options = get_option( 'ez_settings' );
+	$options = get_option( 'elevatezoom_settings' );
 
-	if ( !is_array( $options ) ) $options = array();
-	
-	if ( !array_key_exists('zoomWindowWidth', $options) ) $options['zoomWindowWidth'] = 400;	
-	
 	?>
-	<input type='text' name='ez_settings[zoomWindowWidth]' value='<?php echo $options['zoomWindowWidth']; ?>'>
+ 	<label for="elevatezoom_settings[galleryThumbWidth]">Width:</label>
+	<input size="4" type='text' name='elevatezoom_settings[galleryThumbWidth]' value='<?php echo $options['galleryThumbWidth']; ?>'>
+ 	<label for="elevatezoom_settings[galleryThumbHeight]">Height:</label>
+	<input size="4" type='text' name='elevatezoom_settings[galleryThumbHeight]' value='<?php echo $options['galleryThumbHeight']; ?>'>
+ 	<label for="elevatezoom_settings[galleryThumbCrop]">Hard crop:</label>
+	<select name='elevatezoom_settings[galleryThumbCrop]'>
+		<option value='1' <?php selected( $options['galleryThumbCrop'], '1' ); ?>>Yes</option>
+		<option value='0' <?php selected( $options['galleryThumbCrop'], '0' ); ?>>No</option>
+	</select>
+	<p>Using a hard crop is recommended as it ensures that the image will always be the set dimensions.</p>	
 	<?php
 
 }
+
+function ez_galleryDisplay_render( ) {
+
+	$options = get_option( 'elevatezoom_settings' );
+
+	?>
+ 	<label for="elevatezoom_settings[galleryDisplayWidth]">Width:</label>
+	<input size="4" type='text' name='elevatezoom_settings[galleryDisplayWidth]' value='<?php echo $options['galleryDisplayWidth']; ?>'>
+ 	<label for="elevatezoom_settings[galleryDisplayHeight]">Height:</label>
+	<input size="4" type='text' name='elevatezoom_settings[galleryDisplayHeight]' value='<?php echo $options['galleryDisplayHeight']; ?>'>
+ 	<label for="elevatezoom_settings[galleryDisplayCrop]">Hard crop:</label>
+	<select name='elevatezoom_settings[galleryDisplayCrop]'>
+		<option value='1' <?php selected( $options['galleryDisplayCrop'], '1' ); ?>>Yes</option>
+		<option value='0' <?php selected( $options['galleryDisplayCrop'], '0' ); ?>>No</option>
+	</select>
+	<p>Using a hard crop is recommended as it ensures that the image will always be the set dimensions.</p>	
+	<?php
+
+}
+
+function ez_galleryZoom_render( ) {
+
+	$options = get_option( 'elevatezoom_settings' );
+
+	?>
+ 	<label for="elevatezoom_settings[galleryZoomWidth]">Width:</label>
+	<input size="4" type='text' name='elevatezoom_settings[galleryZoomWidth]' value='<?php echo $options['galleryZoomWidth']; ?>'>
+ 	<label for="elevatezoom_settings[galleryZoomHeight]">Height:</label>
+	<input size="4" type='text' name='elevatezoom_settings[galleryZoomHeight]' value='<?php echo $options['galleryZoomHeight']; ?>'>
+ 	<label for="elevatezoom_settings[galleryZoomCrop]">Hard crop:</label>
+	<select name='elevatezoom_settings[galleryZoomCrop]'>
+		<option value='1' <?php selected( $options['galleryZoomCrop'], '1' ); ?>>Yes</option>
+		<option value='0' <?php selected( $options['galleryZoomCrop'], '0' ); ?>>No</option>
+	</select>
+	<p>Using a hard crop is recommended as it ensures that the image will always be the set dimensions.</p>	
+	<?php
+
+}
+
 
 function ez_scrollZoom_render(  ) { 
 
-	$options = get_option( 'ez_settings' );
-
-	if ( !is_array( $options ) ) $options = array();
-
-	if ( !array_key_exists('scrollZoom', $options) ) $options['scrollZoom'] = 0;	150
+	$options = get_option( 'elevatezoom_settings' );
 
 	?>
-	<input type='checkbox' name='ez_settings[scrollZoom]' <?php checked( $options['scrollZoom'], 1 ); ?> value='1'>
+	<select name='elevatezoom_settings[scrollZoom]'>
+		<option value='1' <?php selected( $options['scrollZoom'], '1' ); ?>>Yes</option>
+		<option value='0' <?php selected( $options['scrollZoom'], '0' ); ?>>No</option>
+	</select>
 	<?php
 
 }
 
 function ez_lensShape_render( ) {
 
-	$options = get_option( 'ez_settings' );
+	$options = get_option( 'elevatezoom_settings' );
 
-	if ( !is_array( $options ) ) $options = array();
-	
-	if ( !array_key_exists('lensShape', $options) ) $options['lensShape'] = 'square';	
-	
 	?>
-	<select name='ez_settings[lensShape]'>
+	<select name='elevatezoom_settings[lensShape]'>
 		<option value='square' <?php selected( $options['lensShape'], 'square' ); ?>>Square</option>
 		<option value='round' <?php selected( $options['lensShape'], 'round' ); ?>>Round</option>
 	</select>
@@ -244,27 +417,55 @@ function ez_lensShape_render( ) {
 
 }
 
+
 function ez_lensSize_render(  ) { 
 
-	$options = get_option( 'ez_settings' );
+	$options = get_option( 'elevatezoom_settings' );
 
-	if ( !is_array( $options ) ) $options = array();
-	
-	if ( !array_key_exists('lensSize', $options) ) $options['lensSize'] = 200;
-	
 	?>
-	<input type='text' name='ez_settings[lensSize]' value='<?php echo $options['lensSize']; ?>'>
+	<input size="4" type='text' name='elevatezoom_settings[lensSize]' value='<?php echo $options['lensSize']; ?>'>
 	<?php
 
 }
 
 
-function ez_settings_section_callback(  ) { 
+function ez_imageCrossfade_render(  ) { 
 
-	echo __( 'Set the defaults for elevateZoom!', 'ez' );
+	$options = get_option( 'elevatezoom_settings' );
+
+	?>
+	<select name='elevatezoom_settings[imageCrossfade]'>
+		<option value='1' <?php selected( $options['imageCrossfade'], '1' ); ?>>Yes</option>
+		<option value='0' <?php selected( $options['imageCrossfade'], '0' ); ?>>No</option>
+	</select>
+	<?php
 
 }
 
+
+function ez_loadingIcon_render(  ) { 
+
+	$options = get_option( 'elevatezoom_settings' );
+
+	?>
+	<img src="<?php echo $options['loadingIcon']; ?>" alt="loading icon"><br/>
+	<input size="40" type='text' name='elevatezoom_settings[loadingIcon]' value='<?php echo $options['loadingIcon']; ?>'>
+	<?php
+
+}
+
+
+function ez_general_settings_section_callback(  ) { 
+
+	echo __( 'Set the defaults for using elevateZoom. Refer to the <a href="http://www.elevateweb.co.uk/image-zoom/configuration" title="Read more about the configuration settings on the elevateZoom website">elevateZoom configuration page</a> for more details.', 'elevatezoom' );
+
+}
+
+function ez_gallery_settings_section_callback(  ) { 
+
+	echo __( 'Set the size and crop of the gallery images (thumbnail, display and zoom)', 'elevatezoom' );
+
+}
 
 function elevatezoom_options_page(  ) { 
 
@@ -274,8 +475,10 @@ function elevatezoom_options_page(  ) {
 		<h2>elevateZoom</h2>
 		
 		<?php
-		settings_fields( 'pluginPage' );
-		do_settings_sections( 'pluginPage' );
+		settings_fields( 'general' );
+		do_settings_sections( 'general' );
+		settings_fields( 'gallery' );
+		do_settings_sections( 'gallery' );
 		submit_button();
 		?>
 		
