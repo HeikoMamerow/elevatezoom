@@ -14,7 +14,7 @@ function initialize_elevatezoom() {
 	if( false == $options ) { 
 
 		$options = array(
-			'ezClass' => 'elevateZoom',
+			'ezClass' => 'elevatezoom',
 			'zoomType' => 'window',
 			'lensShape' => 'square',
 			'lensSize' => 100,
@@ -134,7 +134,7 @@ function zoomgallery_shortcode( $attr ) {
 		return $output;
 	}
 
-	$selector = 'zoomgallery-{$instance}';
+	$selector = 'zoomgallery-' . $instance;
 
 	$output = '<div id="'. $selector . '" class="zoomgallery" style="margin-top: 5px">';
 
@@ -156,7 +156,7 @@ function zoomgallery_shortcode( $attr ) {
 		$i++;			
 	}
 
-	$output .= '</div>\n';
+	$output .= '</div>';
 
 	return $output;
 }
